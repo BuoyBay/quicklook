@@ -1,0 +1,152 @@
+Public Function QuickLookSupported() As Boolean
+    #If TargetMac Then
+        Return True
+    #Else
+        Return False
+    #End If
+End Function
+
+#If TargetMac Then
+    Sequential Structure PreviewFrame
+        X As Double
+        Y As Double
+        Width As Double
+        Height As Double
+    End Structure
+    Private Declare Function ObjClass Lib "objc" Alias "objc_getClass" (name As String) As Ptr
+    Private Declare Function Allocate Lib "Foundation" Selector "alloc" (cls As Ptr) As Ptr
+    Private Declare Function InitPreview Lib "buoy_quicklookui" Selector "initWithFrame:style:" (view As Ptr, frame As PreviewFrame, style As Integer) As Ptr
+    Private Declare Sub AddNativeView Lib "AppKit" Selector "addSubview:" (parent As Ptr, child As Ptr)
+    Private Declare Sub Autoresize Lib "AppKit" Selector "setAutoresizingMask:" (view As Ptr, resizeMask As Integer)
+    Private Declare Sub CloseWithWindow Lib "buoy_quicklookui" Selector "setShouldCloseWithWindow:" (view As Ptr, enabled As UInt8)
+    Private Declare Sub AutoStarts Lib "buoy_quicklookui" Selector "setAutostarts:" (view As Ptr, enabled As UInt8)
+    Private Declare Sub SetPreviewItem Lib "buoy_quicklookui" Selector "setPreviewItem:" (view As Ptr, item As Ptr)
+    Private Declare Sub RefreshNative Lib "buoy_quicklookui" Selector "refreshPreviewItem" (view As Ptr)
+    Private Declare Sub CloseNative Lib "buoy_quicklookui" Selector "close" (view As Ptr)
+    Private Declare Sub RemoveNative Lib "AppKit" Selector "removeFromSuperview" (view As Ptr)
+    Private Declare Function InitFile Lib "Foundation" Selector "initFileURLWithPath:" (url As Ptr, text As Ptr) As Ptr
+    Private Declare Sub ReleaseObject Lib "CoreFoundation" Alias "CFRelease" (value As Ptr)
+#End If
+
+#If TargetMac Then
+    Private Declare Function CleanupIsMain Lib "Foundation" Selector "isMainThread" (cls As Ptr) As UInt8
+    Private Class PreviewTeardown
+        Public Property View As Ptr = Nil
+    End Class
+    Private Class PreviewCleanup
+        Public Shared Property Guard As Mutex = New Mutex()
+        Public Shared Property Pending As Array Of PreviewTeardown = []
+    End Class
+    Private Sub DisposePreview(item As PreviewTeardown)
+        If item.View <> Nil Then
+            CloseNative(item.View)
+            RemoveNative(item.View)
+            ReleaseObject(item.View)
+        End If
+    End Sub
+    Private Sub DrainPreviewTeardown()
+        Dim pending As Array Of PreviewTeardown = []
+        SyncLock PreviewCleanup.Guard
+            pending = PreviewCleanup.Pending
+            PreviewCleanup.Pending = []
+        End SyncLock
+        For Each item As PreviewTeardown In pending
+            DisposePreview(item)
+        Next
+    End Sub
+    Private Sub RetirePreview(item As PreviewTeardown)
+        If CleanupIsMain(ObjClass("NSThread")) <> 0 Then
+            DisposePreview(item)
+        Else
+            SyncLock PreviewCleanup.Guard
+                Array.Append(PreviewCleanup.Pending, item)
+            End SyncLock
+            MainThread.InvokeAsync(AddressOf DrainPreviewTeardown)
+        End If
+    End Sub
+#End If
+
+''' Embed in your own window with AddSubview; use only on the UI thread.
+Public Class QuickLookView Inherits View
+    Private Property mPreview As Ptr = Nil
+    Private Property mClosed As Boolean = False
+    Public Property CurrentPath As String
+        Get
+            Return Me.mPath
+        End Get
+    End Property
+    Private Property mPath As String
+
+    Public Sub Constructor(compact As Boolean = False)
+        Super.Constructor()
+        #If TargetMac Then
+            Dim frame As PreviewFrame = { X: 0.0, Y: 0.0, Width: 320.0, Height: 240.0 }
+            Dim style As Integer = 0
+            If compact Then style = 1
+            Me.Move(0, 0, 320, 240)
+            Me.mPreview = InitPreview(Allocate(ObjClass("QLPreviewView")), frame, style)
+            If Me.mPreview = Nil Then Throw New Exception("Quick Look view could not be created")
+            ' Explicit lifecycle keeps the wrapper's state consistent; Close is permanent.
+            CloseWithWindow(Me.mPreview, 0)
+            AutoStarts(Me.mPreview, 0)
+            Autoresize(Me.mPreview, 18)
+            AddNativeView(Me.NativeWidget, Me.mPreview)
+        #Else
+            Throw New Exception("Quick Look requires macOS")
+        #End If
+    End Sub
+
+    Public Sub Load(file As FileSystemItem)
+        If Me.mClosed Then Throw New InvalidArgumentException("Quick Look view is closed")
+        If file = Nil Then Throw New InvalidArgumentException("A file is required")
+        For Each pathCharacter As String In String.Chars(file.NativePath)
+            If String.Asc(pathCharacter) = 0 Then Throw New InvalidArgumentException("File path contains NUL")
+        Next
+        If Not file.Exists() Then Throw New InvalidArgumentException("Preview file does not exist")
+        #If TargetMac Then
+            Dim fileText As CFStringRef = CType(file.NativePath, CFStringRef)
+            Dim url As Ptr = Nil
+            Try
+                url = InitFile(Allocate(ObjClass("NSURL")), fileText)
+                SetPreviewItem(Me.mPreview, url)
+                Me.mPath = file.NativePath
+            Finally
+                If url <> Nil Then ReleaseObject(url)
+                ReleaseObject(fileText)
+            End Try
+        #End If
+    End Sub
+
+    Public Sub Clear()
+        If Me.mClosed Then Return
+        #If TargetMac Then
+            SetPreviewItem(Me.mPreview, Nil)
+            Me.mPath = ""
+        #End If
+    End Sub
+
+    Public Sub Refresh()
+        If Me.mClosed Then Throw New InvalidArgumentException("Quick Look view is closed")
+        #If TargetMac Then
+            RefreshNative(Me.mPreview)
+        #End If
+    End Sub
+
+    Public Sub Close()
+        If Me.mClosed Then Return
+        Me.mClosed = True
+        Me.mPath = ""
+        #If TargetMac Then
+            If Me.mPreview <> Nil Then
+                Dim pending As New PreviewTeardown()
+                pending.View = Me.mPreview
+                Me.mPreview = Nil
+                RetirePreview(pending)
+            End If
+        #End If
+    End Sub
+
+    Public Sub Destructor()
+        Me.Close()
+    End Sub
+End Class
