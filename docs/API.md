@@ -24,9 +24,8 @@ macOS only. Windows/Linux report unsupported; construction throws. The bundled
 linker stub describes Apple's system QuickLookUI framework; no third-party binary
 is shipped.
 
-The sealed-package native test creates an **unshown** preview, loads/clears its own
-fixture, and verifies permanent/idempotent close. A visible rendered preview still
-needs app-level manual QA; no shared UI is automated by the tests.
+Check rendered previews in the host application, with its actual sandbox
+permissions and preview providers.
 
 Apple API: [QLPreviewView](https://developer.apple.com/documentation/quicklookui/qlpreviewview).
 

@@ -1,6 +1,6 @@
-# Preview files with native macOS Quick Look
+# Preview files with a View-based native macOS Quick Look control
 
-An embeddable native **QLPreviewView**, exposed as a Buoy `View` subclass.
+An embeddable native **QLPreviewView**, exposed as a View-based `QuickLookView`.
 `Import quicklook`. This avoids the global QLPreviewPanel's responder-chain and
 data-source ownership rules. No external viewer process or shell command is used.
 
@@ -65,8 +65,6 @@ On your own machine, install Buoy and run:
 ```sh
 buoy ai init --both
 ```
-
-The generated agent files and editor settings stay local and are ignored by Git.
 
 ## Contributing
 
