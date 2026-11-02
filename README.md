@@ -1,4 +1,4 @@
-# View-based macOS Quick Look control
+# Quick Look view
 
 An embeddable native **QLPreviewView**, exposed as a View-based `QuickLookView`.
 `Import quicklook`. This avoids the global QLPreviewPanel's responder-chain and

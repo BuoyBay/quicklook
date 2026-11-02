@@ -2,7 +2,7 @@
     "schema": 1,
     "name": "quicklook",
     "version": "0.1.0",
-    "description": "View-based macOS Quick Look control",
+    "description": "Quick Look view",
     "platforms": [
         "arm64-apple-macos",
         "x86_64-apple-macos"
