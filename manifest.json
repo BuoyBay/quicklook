@@ -1,16 +1,16 @@
 {
-  "schema": 1,
-  "name": "quicklook",
-  "version": "0.1.0",
-  "description": "Native macOS QuickLook integration for Buoy",
-  "platforms": [
-    "arm64-apple-macos",
-    "x86_64-apple-macos"
-  ],
-  "libraries": [
-    {
-      "libName": "buoy_quicklookui",
-      "system": true
-    }
-  ]
+    "schema": 1,
+    "name": "quicklook",
+    "version": "0.1.0",
+    "description": "View-based macOS Quick Look control",
+    "platforms": [
+        "arm64-apple-macos",
+        "x86_64-apple-macos"
+    ],
+    "libraries": [
+        {
+            "libName": "buoy_quicklookui",
+            "system": true
+        }
+    ]
 }

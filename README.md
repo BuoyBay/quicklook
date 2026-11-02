@@ -1,4 +1,4 @@
-# Preview files with a View-based native macOS Quick Look control
+# View-based macOS Quick Look control
 
 An embeddable native **QLPreviewView**, exposed as a View-based `QuickLookView`.
 `Import quicklook`. This avoids the global QLPreviewPanel's responder-chain and
@@ -26,7 +26,7 @@ consumer project for reproducible installs.
 
 ## Example
 
-```buoy
+```basic
 Import quicklook
 
 Function CreateFilePreview(file As FileSystemItem) As QuickLookView
